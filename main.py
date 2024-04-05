@@ -2,6 +2,8 @@ import copy
 
 
 class TubesConfiguration:
+
+    size_tubes = -1
     
     def __init__(self, tubes) -> None:
         self.tubes = tubes
@@ -22,13 +24,13 @@ class TubesConfiguration:
         tubes = id.split('-')
         tubes.pop()
         for tube in tubes:
-            configuration.append( tube.split('|'))
-            configuration[-1].pop()
+            configuration.append(['']*TubesConfiguration.size_tubes)
 
-            for i in range(0,TubesConfiguration.size_tubes-len(tube)):
-                configuration[-1].append('')
+            for i, color in enumerate(tube.split('|')):
+                if (i < TubesConfiguration.size_tubes):
+                    configuration[-1][i] = color
 
-        print(configuration)
+        return TubesConfiguration(configuration)
 
     def check_validity(self):
         TubesConfiguration.size_tubes = -1
@@ -58,7 +60,7 @@ class TubesConfiguration:
         return True
     
     def display(self):
-        for i in range(len(self.tubes[0])-1, -1, -1):
+        for i in range(TubesConfiguration.size_tubes -1, -1, -1):
             str = ""
             for tube in self.tubes:
                 str += f"|{tube[i].ljust(2) if tube[i] != '' else '**'}"
@@ -69,7 +71,6 @@ class TubesConfiguration:
         for i,tube in enumerate(self.tubes):
             str +=f" {i.__str__().ljust(2)}"
         print(str)
-        print()
                     
     def unfinished_tubes(self):
         unfinished_tubes = []
@@ -134,6 +135,8 @@ class tubes_puzzle_solver:
     MAX_DEPTH = 20
 
     def __init__(self, tubes_configuration):
+        self.configuration_present = []
+
         self.tubes_configuration = tubes_configuration
         self.Ids_Solutions = []
 
@@ -142,66 +145,54 @@ class tubes_puzzle_solver:
         self.configurations_IDs_dict = {}
 
     def solve(self):
-        self._solver(self.tubes_configuration, 0)
+        self.configuration_present.append(self.tubes_configuration)
 
-        ID_solution_min = self.Ids_Solutions[0]
-        nb_play_minimum = 1000
+        solution_ID = self._solver(0)
 
-        for solution in self.Ids_Solutions:
+        compt = 0
+        while solution_ID in self.configurations_IDs_dict.keys():
+            compt += 1
+            TubesConfiguration.ID_to_configuration(solution_ID).display()
+            print()
+            solution_ID = self.configurations_IDs_dict[solution_ID]
+        TubesConfiguration.ID_to_configuration(solution_ID).display()
 
-            ID_solution = solution
-            compt = 0
-
-            while ID_solution in self.configurations_IDs_dict.keys():
-                ID_solution = self.configurations_IDs_dict[ID_solution][0]
-                compt += 1
-
-            if compt < nb_play_minimum:
-                ID_solution_min = solution
-                nb_play_minimum = compt
-
-        print(nb_play_minimum," plays min found")
-        
-        while ID_solution_min in self.configurations_IDs_dict.keys():
-            print(ID_solution_min)
-            ID_solution_min = self.configurations_IDs_dict[ID_solution_min][0]
-            
-        TubesConfiguration.ID_to_configuration(self.Ids_Solutions[0])
+        print("Solution with",compt,"steps")
 
 
+    def _solver(self, depth):
+        print(depth, len(self.configuration_present))
 
-    def _solver(self, configuration, depth):
+        configuration_sons = []
+
         if depth > tubes_puzzle_solver.MAX_DEPTH:
-            return
-
-        unfinished_tubes = configuration.unfinished_tubes()
-
-        if len(unfinished_tubes) == 2:            
-            self.Ids_Solutions.append(configuration.ID())
+            return None
             
-        
-        for i in unfinished_tubes:
-            for j in unfinished_tubes:
+        for configuration in self.configuration_present:
+            configuration_ID = configuration.ID()
 
-                if i!=j:
+            unfinished_tubes = configuration.unfinished_tubes()
 
-                    new_configuration = TubesConfiguration( copy.deepcopy(configuration.tubes) )
-                    new_configuration = new_configuration.move(i,j)
+            if len(unfinished_tubes) == 2:            
+                return configuration_ID
 
-                    if new_configuration != None:
-                        #print(depth,len(unfinished_tubes) ,i,j)
+            for i in unfinished_tubes:
+                for j in unfinished_tubes:
+                    if i!=j:
+                        
+                        new_configuration = TubesConfiguration( copy.deepcopy(configuration.tubes) )
+                        new_configuration = new_configuration.move(i,j)
 
-                        new_configuration_id = new_configuration.ID()
+                        if new_configuration != None:
+                            new_configuration_ID = new_configuration.ID()
 
-                        try:
-                            if depth < self.configurations_IDs_dict[new_configuration_id][1]:
-                                self.configurations_IDs_dict[new_configuration_id] = [configuration.ID(), depth ]
+                            if new_configuration_ID not in self.configurations_IDs_dict.keys():
+                                self.configurations_IDs_dict[new_configuration_ID] = configuration_ID
+                                configuration_sons.append(new_configuration)
 
-                        except KeyError:
-                            self.configurations_IDs_dict[new_configuration_id] = [configuration.ID(), depth ]
-
-                            self._solver(new_configuration, depth+1)
-
+        self.configuration_present = configuration_sons
+        return self._solver(depth+1)
+                
 
 
 if __name__ == "__main__":
